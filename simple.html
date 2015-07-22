@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Simple Example</title>
+	<style>
+		body { font-size: 12px; font-family: 'Arial'; }
+		.left { float: left; width: 400px; }
+		.right { float: left; }
+		form { margin-left: 150px; margin-top: 20px;}
+		#msg { clear: left; height: 500px; overflow: auto; padding: 10px 0; width: 348px; }
+		label { display: block; width: 200px; line-height: 25px; }
+		label > input { float: right; }
+		label > span { padding: 0px 7px; float: right; margin-top: 2px; line-height: 18px; }
+		label > span.startColor { background-color: #288cef; }
+		label > span.endColor { background-color: #d8392b;}
+		label > span.lookColor { background-color: #5fe22b;}
+		a.submit { text-decoration: none; font-size: 11px; background-color: #ccc; padding: 6px 13px; display: block; float: left; margin-left: 139px; color: black; }
+		a.submit:hover { background-color: #aaa; }
+	</style>
+
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+	<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false" type="text/javascript"></script>
+	<script src="js/three.min.js"></script>
+	<script src="js/GSVPano.js"></script>
+	<script src="src/Hyperlapse.js"></script>
+	<script>
+		function initialize() {
+		    var start = new google.maps.LatLng(52.2297537,21.011364);
+		    var end = new google.maps.LatLng(52.2302589,21.0144975);
+		    var look = new google.maps.LatLng(52.2304415,21.0124057);
+
+  		    var mapOptions = {
+		        zoom: 12,
+		        center: start
+		    };
+
+		    var map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+
+		    var startPinImage = new google.maps.MarkerImage("http://chart.apis.google.com/chart?chst=d_map_pin_letter&chld=%E2%80%A2|288cef",
+		        new google.maps.Size(21, 34),
+		        new google.maps.Point(0,0),
+		        new google.maps.Point(10, 34));
+		    var startPoint = new google.maps.Marker({
+		        position: start,
+		        map: map,
+		        icon: startPinImage,
+		        title: 'Start point',
+		        draggable: true
+		    });
+
+		    var endPinImage = new google.maps.MarkerImage("http://chart.apis.google.com/chart?chst=d_map_pin_letter&chld=%E2%80%A2|d8392b",
+		        new google.maps.Size(21, 34),
+		        new google.maps.Point(0,0),
+		        new google.maps.Point(10, 34));
+		    var endPoint = new google.maps.Marker({
+		        position: end,
+		        map: map,
+		        icon: endPinImage,
+		        title: 'End point',
+		        draggable: true
+		    });
+
+		    var lookPinImage = new google.maps.MarkerImage("http://chart.apis.google.com/chart?chst=d_map_pin_letter&chld=%E2%80%A2|5fe22b",
+		        new google.maps.Size(21, 34),
+		        new google.maps.Point(0,0),
+		        new google.maps.Point(10, 34));
+		    var lookPoint = new google.maps.Marker({
+		        position: look,
+		        map: map,
+		        icon: lookPinImage,
+		        title: 'Look at point',
+		        draggable: true
+		    });
+
+		    var proj = map.getProjection();
+		    var pos = startPoint.getPosition();
+
+	  	    google.maps.event.addListener(startPoint, 'dragend', function(ev){
+			    document.getElementById('start').value = startPoint.getPosition().lat() + ',' + startPoint.getPosition().lng();
+		    });
+	  	    google.maps.event.addListener(endPoint, 'dragend', function(ev){
+			    document.getElementById('end').value = endPoint.getPosition().lat() + ',' + endPoint.getPosition().lng();
+		    });
+	  	    google.maps.event.addListener(lookPoint, 'dragend', function(ev){
+			    document.getElementById('lookAt').value = lookPoint.getPosition().lat() + ',' + lookPoint.getPosition().lng();
+		    });
+		}
+
+		google.maps.event.addDomListener(window, 'load', initialize);
+	</script>
+	<script>
+
+		jQuery(document).ready(function($) {
+
+			function init(s, e, l, z, w, h) {
+				if (l != "") {
+					var hyperlapse = new Hyperlapse(document.getElementById('pano'), {
+						lookat: new google.maps.LatLng(l[0], l[1]),
+						zoom: z,
+						width: w,
+						height: h,
+						use_lookat: true,
+						elevation: 50
+					});
+				}
+				else {
+					var hyperlapse = new Hyperlapse(document.getElementById('pano'), {
+						zoom: z,
+						width: w,
+						height: h,
+						use_lookat: false,
+						elevation: 50
+					});
+				}
+
+				hyperlapse.onError = function(e) {
+					console.log(e);
+				};
+
+				hyperlapse.onRouteComplete = function(e) {
+					hyperlapse.load();
+				};
+
+				hyperlapse.onLoadComplete = function(e) {
+					hyperlapse.play();
+				};
+
+				// Google Maps API stuff here...
+				var directions_service = new google.maps.DirectionsService();
+
+				var route = {
+					request:{
+						origin: new google.maps.LatLng(s[0], s[1]),
+						destination: new google.maps.LatLng(e[0], e[1]),
+						travelMode: google.maps.DirectionsTravelMode.DRIVING
+					}
+				};
+				console.log(route.request.origin);
+
+				directions_service.route(route.request, function(response, status) {
+					if (status == google.maps.DirectionsStatus.OK) {
+						hyperlapse.generate( {route:response} );
+					} else {
+						console.log(status);
+					}
+				});
+
+			}
+
+			$('a#submit').on('click', function(e) {
+				e.preventDefault();
+				var startPnt = $('#start');
+				var endPnt = $('#end');
+				var lookPnt = $('#lookAt');
+				if (startPnt.val() == '' || endPnt.val() == '') {
+					$('#msg').html('set start and end point');
+					return false;
+				}
+				$('#msg').html('');
+
+				var start = $('#start').val().split(',');
+				var end = $('#end').val().split(',');
+				var lookAt = $('#lookAt').val().split(',');
+				var zoom = $('#zoom').val();
+				var width = $('#width').val();
+				var height = $('#height').val();
+
+				init(start, end, lookAt, zoom, width, height);
+			});
+
+			$('#msg').bind('DOMSubtreeModified', function() {
+				$(this).scrollTop($('#msg')[0].scrollHeight);
+			});
+		});
+
+	</script>
+</head>
+<body>
+	<div class="left">
+		<form action="">
+			<label for="start">start point <input type="text" name="start" id="start" value=""><span class="startColor">&nbsp;</span></label>
+			<label for="end">end point <input type="text" name="end" id="end" value=""><span class="endColor">&nbsp;</span></label>
+			<label for="lookAt">look at	<input type="text" name="lookAt" id="lookAt" value=""><span class="lookColor">&nbsp;</span></label>
+			<label for="zoom">zoom <input type="text" name="zoom" id="zoom" value="1"></label>
+			<label for="width">width <input type="text" name="width" id="width" value="800"></label>
+			<label for="height">height <input type="text" name="height" id="height" value="400"></label>
+			<a href="#" id="submit" class="submit">Submit</a>
+		</form>
+		<br />
+		<br />
+		<div id="msg"></div>
+		<div id="log"></div>
+	</div>
+
+	<div class="right">
+		<div id="map-canvas" style="width: 800px; height: 400px;"></div>
+		<div id="pano"></div>
+	</div>
+</body>
+</html>
